@@ -36,19 +36,17 @@ void *task7(void *); // new aperiodic task
 
 // initialization of mutexes and conditions (only for aperiodic scheduling)
 pthread_mutex_t mutex_task_4 = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t mutex_task_5 = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t mutex_task_7 = PTHREAD_MUTEX_INITIALIZER;
 
 pthread_cond_t cond_task_4 = PTHREAD_COND_INITIALIZER;
-pthread_cond_t cond_task_5 = PTHREAD_COND_INITIALIZER;
-pthread_cond_t cond_task_7 = PTHREAD_COND_INITIALIZER;
 
 #define INNERLOOP 1000
-#define OUTERLOOP 100
+#define OUTERLOOP 1000
 
-#define NPERIODICTASKS 4
-#define NAPERIODICTASKS 3
+#define NPERIODICTASKS 3
+#define NAPERIODICTASKS 1
 #define NTASKS NPERIODICTASKS + NAPERIODICTASKS
+
+#define MS_TO_NS 1000000
 
 long int periods[NTASKS];
 struct timespec next_arrival_time[NTASKS];
@@ -65,14 +63,12 @@ int main() {
 	// the third task has period 400 millisecond
 	// you can already order them according to their priority;
 	// if not, you will need to sort them
-	periods[0] = 100000000; // in nanoseconds
-	periods[1] = 200000000; // in nanoseconds
-	periods[2] = 400000000; // in nanoseconds
-	periods[5] = 800000000; // in nanoseconds
+	periods[0] = 300 * MS_TO_NS; // in nanoseconds
+	periods[1] = 500 * MS_TO_NS; // in nanoseconds
+	periods[2] = 800 * MS_TO_NS; // in nanoseconds
 
 	// for aperiodic tasks we set the period equals to 0
 	periods[3] = 0;
-	periods[4] = 0;
 
 	// this is not strictly necessary, but it is convenient to
 	// assign a name to the maximum and the minimum priotity in the
@@ -108,16 +104,10 @@ int main() {
 			task2_code();
 		if (i == 2)
 			task3_code();
-		if (i == 5)
-			task6_code();
 
 		// aperiodic tasks
 		if (i == 3)
 			task4_code();
-		if (i == 4)
-			task5_code();
-		if (i == 6)
-			task7_code();
 
 		clock_gettime(CLOCK_REALTIME, &time_2);
 
@@ -216,11 +206,8 @@ int main() {
 	iret[0] = pthread_create(&(thread_id[0]), &(attributes[0]), task1, NULL);
 	iret[1] = pthread_create(&(thread_id[1]), &(attributes[1]), task2, NULL);
 	iret[2] = pthread_create(&(thread_id[2]), &(attributes[2]), task3, NULL);
-	iret[5] = pthread_create(&(thread_id[5]), &(attributes[5]), task6, NULL);
 
 	iret[3] = pthread_create(&(thread_id[3]), &(attributes[3]), task4, NULL);
-	iret[4] = pthread_create(&(thread_id[4]), &(attributes[4]), task5, NULL);
-	iret[6] = pthread_create(&(thread_id[6]), &(attributes[6]), task7, NULL);
 
 	// join all threads (pthread_join)
 	pthread_join(thread_id[0], NULL);
@@ -252,44 +239,8 @@ void task1_code() {
 		}
 	}
 
-	// when the random variable uno=0, then aperiodic task 5 must
-	// be executed
-	if (uno == 0) {
-		printf(":ex(4)");
-		fflush(stdout);
-		// In theory, we should protect conditions using mutexes. However, in a
-		// real-time application, something undesirable may happen. Indeed, when
-		// task1 takes the mutex and sends the condition, task4 is executed and
-		// is given the mutex by the kernel. Which means that task1 (higher
-		// priority) would be blocked waiting for task4 to finish (lower
-		// priority). This is of course unacceptable, as it would produced a
-		// priority inversion. For this reason, we are not putting mutexes here.
-		// A better solution should be found.
-
-		//      		pthread_mutex_lock(&mutex_task_4);
-		pthread_cond_signal(&cond_task_4);
-		//      		pthread_mutex_unlock(&mutex_task_4);
-	}
-
 	// when the random variable uno=1, then aperiodic task 5 must
 	// be executed
-	if (uno == 1) {
-		printf(":ex(5)");
-		fflush(stdout);
-
-		// See below why mutexes have been commented
-		//      		pthread_mutex_lock(&mutex_task_5);
-		pthread_cond_signal(&cond_task_5);
-		//      		pthread_mutex_unlock(&mutex_task_5);
-	}
-
-	if (uno == 2) {
-		printf(":ex(7)");
-		fflush(stdout);
-		pthread_cond_signal(&cond_task_7);
-	}
-
-	// print the id of the current task
 	printf(" ]1 ");
 	fflush(stdout);
 }
@@ -339,6 +290,26 @@ void task2_code() {
 			uno = rand() * rand() % 10;
 		}
 	}
+
+	// when the random variable uno=0, then aperiodic task 5 must
+	// be executed
+	if (uno == 0) {
+		printf(":ex(4)");
+		fflush(stdout);
+		// In theory, we should protect conditions using mutexes. However, in a
+		// real-time application, something undesirable may happen. Indeed, when
+		// task1 takes the mutex and sends the condition, task4 is executed and
+		// is given the mutex by the kernel. Which means that task1 (higher
+		// priority) would be blocked waiting for task4 to finish (lower
+		// priority). This is of course unacceptable, as it would produced a
+		// priority inversion. For this reason, we are not putting mutexes here.
+		// A better solution should be found.
+
+		//      		pthread_mutex_lock(&mutex_task_4);
+		pthread_cond_signal(&cond_task_4);
+		//      		pthread_mutex_unlock(&mutex_task_4);
+	}
+
 	// print the id of the current task
 	printf(" ]2 ");
 	fflush(stdout);
@@ -402,43 +373,6 @@ void *task3(void *ptr) {
 	}
 }
 
-void task6_code() {
-	// print the id of the current task
-	printf(" 6[ ");
-	fflush(stdout);
-	int i, j;
-	double uno;
-	for (i = 0; i < OUTERLOOP; i++) {
-		for (j = 0; j < INNERLOOP; j++)
-			;
-		double uno = rand() * rand() % 10;
-	}
-	// print the id of the current task
-	printf(" ]6 ");
-	fflush(stdout);
-}
-
-void *task6(void *ptr) {
-	// set thread affinity, that is the processor on which threads shall run
-	cpu_set_t cset;
-	CPU_ZERO(&cset);
-	CPU_SET(0, &cset);
-	pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cset);
-
-	int i = 0;
-	for (i = 0; i < 100; i++) {
-		task6_code();
-
-		clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &next_arrival_time[5],
-						NULL);
-		long int next_arrival_nanoseconds =
-			next_arrival_time[5].tv_nsec + periods[5];
-		next_arrival_time[5].tv_nsec = next_arrival_nanoseconds % 1000000000;
-		next_arrival_time[5].tv_sec =
-			next_arrival_time[5].tv_sec + next_arrival_nanoseconds / 1000000000;
-	}
-}
-
 void task4_code() {
 	printf(" 4[ ");
 	fflush(stdout);
@@ -467,63 +401,5 @@ void *task4(void *) {
 		//		pthread_mutex_unlock(&mutex_task_4);
 		// execute the task code
 		task4_code();
-	}
-}
-
-void task5_code() {
-	printf(" 5[ ");
-	fflush(stdout);
-	for (int i = 0; i < OUTERLOOP; i++) {
-		for (int j = 0; j < INNERLOOP; j++)
-			double uno = rand() * rand();
-	}
-	printf(" ]5 ");
-	fflush(stdout);
-}
-
-void *task5(void *) {
-	// set thread affinity, that is the processor on which threads shall run
-	cpu_set_t cset;
-	CPU_ZERO(&cset);
-	CPU_SET(0, &cset);
-	pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cset);
-	// add an infinite loop
-	while (1) {
-		// wait for the proper condition to be signalled
-		// See below why mutexes have been commented
-		//      		pthread_mutex_lock(&mutex_task_5);
-		pthread_cond_wait(&cond_task_5, &mutex_task_5);
-		//      		pthread_mutex_unlock(&mutex_task_5);
-		// execute the task code
-		task5_code();
-	}
-}
-
-void task7_code() {
-	printf(" 7[ ");
-	fflush(stdout);
-	for (int i = 0; i < OUTERLOOP; i++) {
-		for (int j = 0; j < INNERLOOP; j++)
-			double uno = rand() * rand();
-	}
-	printf(" ]7 ");
-	fflush(stdout);
-}
-
-void *task7(void *) {
-	// set thread affinity, that is the processor on which threads shall run
-	cpu_set_t cset;
-	CPU_ZERO(&cset);
-	CPU_SET(0, &cset);
-	pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cset);
-	// add an infinite loop
-	while (1) {
-		// wait for the proper condition to be signalled
-		// See below why mutexes have been commented
-		//      		pthread_mutex_lock(&mutex_task_7);
-		pthread_cond_wait(&cond_task_7, &mutex_task_7);
-		//      		pthread_mutex_unlock(&mutex_task_7);
-		// execute the task code
-		task7_code();
 	}
 }
