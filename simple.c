@@ -53,43 +53,37 @@ int simple_open(struct inode *inode, struct file *filp) {
 
 int simple_release(struct inode *inode, struct file *filp) { return 0; }
 
-ssize_t simple_read(struct file *filp, char __user *buf, size_t count,
-					loff_t *f_pos) {
-	struct simple_dev *dev = filp->private_data;
-
-	ssize_t retval = 0;
-
-	if (down_interruptible(&dev->sem))
-		return -ERESTARTSYS;
-	if (count >= dev->memsize)
-		goto out;
-
-	if (copy_to_user(buf, dev->data, count)) {
-		retval = -EFAULT;
-		goto out;
-	}
-	retval = count;
-
-out:
-	up(&dev->sem);
-	return retval;
-}
-
 ssize_t simple_write(struct file *filp, const char __user *buf, size_t count,
 					 loff_t *f_pos) {
 	struct simple_dev *dev = filp->private_data;
 	ssize_t retval = 0; /* return value */
 
-	if (down_interruptible(&dev->sem))
+	if (down_interruptible(&dev->sem)) {
 		return -ERESTARTSYS;
+	}
 
-	if (count >= dev->memsize)
-		count = dev->memsize;
+	// if the buffer is not large enough it gets reallocated with at least
+	// double the size to reduce the amount of times the buffer gets reallocated
+	// the +1 is needed for the null termination
+	if (count >= dev->memsize) {
+		const size_t new_size = max((size_t)(dev->memsize * 2), count + 1);
+
+		char *new_data = krealloc(dev->data, new_size, GFP_KERNEL);
+		if (!new_data)
+			return -ENOMEM;
+		dev->data = new_data;
+		dev->memsize = new_size;
+	}
 
 	if (copy_from_user(dev->data, buf, count)) {
 		retval = -EFAULT;
 		goto out;
 	}
+
+	// ensuring that the string from the user is propery null termiated
+	dev->data[count] = '\0';
+
+	printk("%s", dev->data);
 	retval = count;
 
 out:
@@ -99,7 +93,6 @@ out:
 
 struct file_operations simple_fops = {
 	.owner = THIS_MODULE,
-	.read = simple_read,
 	.write = simple_write,
 	.open = simple_open,
 	.release = simple_release,

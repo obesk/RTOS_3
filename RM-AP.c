@@ -3,13 +3,17 @@
 // This exercise show how to schedule threads with Rate Monotonic with aperiodic
 // tasks in background
 
+#include <fcntl.h>
 #include <math.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+void kernel_print(const char *const);
 
 // code of periodic tasks
 void task1_code();
@@ -227,7 +231,7 @@ int main() {
 // application specific task_1 code
 void task1_code() {
 	// print the id of the current task
-	printf(" 1[ ");
+	kernel_print(" 1[ ");
 	fflush(stdout);
 
 	// this double loop with random computation is only required to waste time
@@ -241,7 +245,7 @@ void task1_code() {
 
 	// when the random variable uno=1, then aperiodic task 5 must
 	// be executed
-	printf(" ]1 ");
+	kernel_print(" ]1 ");
 	fflush(stdout);
 }
 
@@ -277,11 +281,12 @@ void *task1(void *ptr) {
 		next_arrival_time[0].tv_sec =
 			next_arrival_time[0].tv_sec + next_arrival_nanoseconds / 1000000000;
 	}
+	return NULL;
 }
 
 void task2_code() {
 	// print the id of the current task
-	printf(" 2[ ");
+	kernel_print(" 2[ ");
 	fflush(stdout);
 	int i, j;
 	double uno;
@@ -294,7 +299,7 @@ void task2_code() {
 	// when the random variable uno=0, then aperiodic task 5 must
 	// be executed
 	if (uno == 0) {
-		printf(":ex(4)");
+		kernel_print(":ex(4)");
 		fflush(stdout);
 		// In theory, we should protect conditions using mutexes. However, in a
 		// real-time application, something undesirable may happen. Indeed, when
@@ -311,7 +316,7 @@ void task2_code() {
 	}
 
 	// print the id of the current task
-	printf(" ]2 ");
+	kernel_print(" ]2 ");
 	fflush(stdout);
 }
 
@@ -334,11 +339,12 @@ void *task2(void *ptr) {
 		next_arrival_time[1].tv_sec =
 			next_arrival_time[1].tv_sec + next_arrival_nanoseconds / 1000000000;
 	}
+	return NULL;
 }
 
 void task3_code() {
 	// print the id of the current task
-	printf(" 3[ ");
+	kernel_print(" 3[ ");
 	fflush(stdout);
 	int i, j;
 	double uno;
@@ -348,7 +354,7 @@ void task3_code() {
 		double uno = rand() * rand() % 10;
 	}
 	// print the id of the current task
-	printf(" ]3 ");
+	kernel_print(" ]3 ");
 	fflush(stdout);
 }
 
@@ -371,16 +377,17 @@ void *task3(void *ptr) {
 		next_arrival_time[2].tv_sec =
 			next_arrival_time[2].tv_sec + next_arrival_nanoseconds / 1000000000;
 	}
+	return NULL;
 }
 
 void task4_code() {
-	printf(" 4[ ");
+	kernel_print(" 4[ ");
 	fflush(stdout);
 	for (int i = 0; i < OUTERLOOP; i++) {
 		for (int j = 0; j < INNERLOOP; j++)
 			double uno = rand() * rand();
 	}
-	printf(" ]4 ");
+	kernel_print(" ]4 ");
 	fflush(stdout);
 	fflush(stdout);
 }
@@ -402,4 +409,17 @@ void *task4(void *) {
 		// execute the task code
 		task4_code();
 	}
+}
+void kernel_print(const char *const str) {
+	int fd = open("/dev/simple", O_WRONLY);
+	if (fd < 0) {
+		perror("open failed");
+		return;
+	}
+
+	if (write(fd, str, strlen(str)) < 0) {
+		perror("write failed");
+	}
+
+	close(fd);
 }
