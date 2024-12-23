@@ -19,24 +19,18 @@ void kernel_print(const char *const);
 void task1_code();
 void task2_code();
 void task3_code();
-void task6_code(); // new periodic task
 
 // code of aperiodic tasks
 void task4_code();
-void task5_code();
-void task7_code(); // new aperiodic task
 
 // characteristic function of the thread, only for timing and synchronization
 // periodic tasks
 void *task1(void *);
 void *task2(void *);
 void *task3(void *);
-void *task6(void *); // new periodic task
 
 // aperiodic tasks
 void *task4(void *);
-void *task5(void *);
-void *task7(void *); // new aperiodic task
 
 // initialization of mutexes and conditions (only for aperiodic scheduling)
 pthread_mutex_t mutex_task_4 = PTHREAD_MUTEX_INITIALIZER;
